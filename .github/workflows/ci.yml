@@ -38,6 +38,17 @@ jobs:
           push-changes: false
           expect-out-of-sync: true
           expected-target-ref: test-2-expected-diff
+      - name: Test 3. A new file is added
+        uses: ./
+        with:
+          upstream-repository: fem-on-colab/is-synced-with-upstream-action
+          upstream-ref: test-3-source
+          target-ref: test-3-target
+          file-patterns: tests/*.py **/*.txt
+          commit-message-prefix: Sync with source branch
+          push-changes: false
+          expect-out-of-sync: true
+          expected-target-ref: test-3-expected-diff
       - name: Warn if scheduled workflow is about to be disabled
         if: github.repository == 'fem-on-colab/is-synced-with-upstream-action' && github.ref == 'refs/heads/main' && github.event_name == 'schedule'
         uses: fem-on-colab/warn-workflow-about-to-be-disabled-action@main
