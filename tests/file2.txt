@@ -1,1 +1,2 @@
 This is a mock text file
+... and a new line has been added!
