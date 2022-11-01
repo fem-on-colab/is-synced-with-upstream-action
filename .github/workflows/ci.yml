@@ -16,3 +16,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: Test 1. A target branch that has never been synced before
+        uses: ./
+        with:
+          upstream-repository: fem-on-colab/is-synced-with-upstream-action
+          upstream-ref: test-1-source
+          target-ref: test-1-target
+          file-patterns: tests/*.py **/*.txt
+          commit-message-prefix: Sync with source branch
+          push-changes: false
+          expect-out-of-sync: true
+          expected-target-ref: test-1-expected-diff
+      - name: Warn if scheduled workflow is about to be disabled
+        if: github.repository == 'fem-on-colab/is-synced-with-upstream-action' && github.ref == 'refs/heads/main' && github.event_name == 'schedule'
+        uses: fem-on-colab/warn-workflow-about-to-be-disabled-action@main
+        with:
+          workflow-filename: ci.yml
+          days-elapsed: 50
