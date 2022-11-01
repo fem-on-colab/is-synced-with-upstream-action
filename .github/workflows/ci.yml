@@ -60,6 +60,16 @@ jobs:
           push-changes: false
           expect-out-of-sync: true
           expected-target-ref: test-4-expected-diff
+      - name: Test 5. An unrelated file is changed
+        uses: ./
+        with:
+          upstream-repository: fem-on-colab/is-synced-with-upstream-action
+          upstream-ref: test-5-source
+          target-ref: test-5-target
+          file-patterns: tests/*.py **/*.txt
+          commit-message-prefix: Sync with source branch
+          push-changes: false
+          expect-out-of-sync: false
       - name: Warn if scheduled workflow is about to be disabled
         if: github.repository == 'fem-on-colab/is-synced-with-upstream-action' && github.ref == 'refs/heads/main' && github.event_name == 'schedule'
         uses: fem-on-colab/warn-workflow-about-to-be-disabled-action@main
