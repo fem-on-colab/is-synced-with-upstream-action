@@ -1,0 +1,176 @@
+name: Is synced with upstream?
+description: "Determine if a ref in a repository is synced with another ref of an upstream repository"
+
+inputs:
+  upstream-repository:
+    description: Name of the upstream repository.
+    type: string
+    required: true
+  upstream-ref:
+    description: Source ref name in the upstream repository.
+    type: string
+    required: true
+  target-ref:
+    description: Traget ref name in the current repository.
+    type: string
+    required: true
+  file-patterns:
+    description: Patterns that limit which files should be compared and synced.
+    type: string
+    required: true
+  commit-message-prefix:
+    description: Prefix for automatic commit message.
+    type: string
+    required: true
+  push-changes:
+    description: Push any detected changes to a new branch, and return a failure. A non-default value should only be used while testing the action itself.
+    type: bool
+    required: false
+    default: true
+  expect-out-of-sync:
+    description: Expect upstream and target refs to be out of sync, and do not return a failure in such case. A non-default value should only be used while testing the action itself.
+    type: bool
+    required: false
+    default: false
+  expected-target-ref:
+    description: If upstream and target refs are expect to be out of sync, compare the obtained difference with the one in this commit. A non-default value should only be used while testing the action itself.
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Store the current date and time
+      id: date_time
+      run: echo "date_time=$(date '+%Y%m%d-%H%M%S')" >> ${GITHUB_OUTPUT}
+      shell: bash
+    - name: Mark target directory as safe
+      run: |
+        git config --global --add safe.directory ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_target
+      shell: bash
+    - name: Clone target repository
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ inputs.target-ref }}
+        fetch-depth: 0
+        path: ${{ github.action }}/_target
+        set-safe-directory: false
+    - name: Mark upstream directory as safe
+      run: |
+        git config --global --add safe.directory ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_upstream
+      shell: bash
+    - name: Clone upstream repository
+      uses: actions/checkout@v3
+      with:
+        repository: ${{ inputs.upstream-repository }}
+        ref: ${{ inputs.upstream-ref }}
+        fetch-depth: 0
+        path: ${{ github.action }}/_upstream
+        set-safe-directory: false
+    - name: Determine latest upstream commit on upstream ref
+      id: commits_on_upstream_ref
+      run: |
+        pushd ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_upstream
+        LATEST_UPSTREAM_COMMIT_ON_UPSTREAM_REF=$(git rev-parse --short HEAD)
+        popd
+        echo "latest_upstream_commit_on_upstream_ref=${LATEST_UPSTREAM_COMMIT_ON_UPSTREAM_REF}" >> ${GITHUB_OUTPUT}
+      shell: bash
+    - name: Determine latest upstream commit already applied on target ref
+      id: commits_on_target_ref
+      run: |
+        UPSTREAM_REPOSITORY=${{ inputs.upstream-repository }}
+        COMMIT_MESSAGE_PREFIX="${{ inputs.commit-message-prefix }}"
+        COMMIT_MESSAGE_SEARCH="${COMMIT_MESSAGE_PREFIX}: ${UPSTREAM_REPOSITORY}@"
+        pushd ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_target
+        if ! git rev-parse "HEAD^{/${COMMIT_MESSAGE_SEARCH}}"; then
+          LATEST_UPSTREAM_COMMIT_ON_TARGET_REF=$(git hash-object -t tree /dev/null)
+        else
+          LATEST_TARGET_COMMIT_ON_TARGET_REF=$(git rev-parse --short "HEAD^{/${COMMIT_MESSAGE_SEARCH}}")
+          LATEST_UPSTREAM_COMMIT_MESSAGE_ON_TARGET_REF="$(git show -s --format=%B ${LATEST_TARGET_COMMIT_ON_TARGET_REF})"
+          LATEST_UPSTREAM_COMMIT_ON_TARGET_REF="${LATEST_UPSTREAM_COMMIT_MESSAGE_ON_TARGET_REF/${COMMIT_MESSAGE_SEARCH}/}"
+        fi
+        popd
+        echo "latest_upstream_commit_on_target_ref=${LATEST_UPSTREAM_COMMIT_ON_TARGET_REF}" >> ${GITHUB_OUTPUT}
+      shell: bash
+    - name: Compute difference between those two commits
+      run: |
+        set -o noglob
+        FILE_PATTERNS="${{ inputs.file-patterns }}"
+        LATEST_UPSTREAM_COMMIT_ON_UPSTREAM_REF=${{ steps.commits_on_upstream_ref.outputs.latest_upstream_commit_on_upstream_ref }}
+        LATEST_UPSTREAM_COMMIT_ON_TARGET_REF=${{ steps.commits_on_target_ref.outputs.latest_upstream_commit_on_target_ref }}
+        pushd ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_upstream
+        git diff ${LATEST_UPSTREAM_COMMIT_ON_TARGET_REF}..${LATEST_UPSTREAM_COMMIT_ON_UPSTREAM_REF} -- ${FILE_PATTERNS} > ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_patch
+        popd
+      shell: bash
+    - name: Mark expected target directory as safe
+      if: inputs.expect-out-of-sync != 'false' && inputs.expected-target-ref != ''
+      run: |
+        git config --global --add safe.directory ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_expected_target
+      shell: bash
+    - name: Clone expected target repository
+      if: inputs.expect-out-of-sync != 'false' && inputs.expected-target-ref != ''
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ inputs.target-ref }}
+        fetch-depth: 0
+        path: ${{ github.action }}/_expected_target
+        set-safe-directory: false
+    - name: Compute expected difference between those two commits
+      if: inputs.expect-out-of-sync != 'false' && inputs.expected-target-ref != ''
+      run: |
+        set -o noglob
+        FILE_PATTERNS="${{ inputs.file-patterns }}"
+        EXPECTED_TARGET_REF=${{ inputs.expected-target-ref }}
+        pushd ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_expected_target
+        git diff ${EXPECTED_TARGET_REF}^ ${EXPECTED_TARGET_REF} -- ${FILE_PATTERNS} > ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_expected_patch
+        if ! cmp --silent ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_patch ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_expected_patch; then
+          echo "Changes are not the same as in the expected diff ref."
+          echo "Expected changes:"
+          cat ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_expected_patch
+          echo "Actual changes:"
+          cat ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_patch
+          echo "Diff of changes:"
+          diff ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_patch ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_expected_patch
+          exit 1001
+        fi
+        popd
+      shell: bash
+    - name: Apply patch to target ref
+      run: |
+        set -o noglob
+        UPSTREAM_REPOSITORY=${{ inputs.upstream-repository }}
+        TARGET_REF=${{ inputs.target-ref }}
+        FILE_PATTERNS="${{ inputs.file-patterns }}"
+        COMMIT_MESSAGE_PREFIX="${{ inputs.commit-message-prefix }}"
+        PUSH_CHANGES=${{ inputs.push-changes }}
+        EXPECT_OUT_OF_SYNC=${{ inputs.expect-out-of-sync }}
+        DATETIME=${{ steps.date_time.outputs.date_time }}
+        LATEST_UPSTREAM_COMMIT_ON_UPSTREAM_REF=${{ steps.commits_on_upstream_ref.outputs.latest_upstream_commit_on_upstream_ref }}
+        LATEST_UPSTREAM_COMMIT_ON_TARGET_REF=${{ steps.commits_on_target_ref.outputs.latest_upstream_commit_on_target_ref }}
+        pushd ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_target
+        git config user.name "GitHub Actions"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        patch -p 1 < ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_patch
+        if [ -n "$(git status --porcelain=v1 2>/dev/null)" ]; then
+          TARGET_REF_NEW=${TARGET_REF}-update-${DATETIME}
+          git checkout -b ${TARGET_REF_NEW}
+          git add ${FILE_PATTERNS}
+          git commit -m "${COMMIT_MESSAGE_PREFIX}: ${UPSTREAM_REPOSITORY}@${LATEST_UPSTREAM_COMMIT_ON_UPSTREAM_REF}"
+          if [ "${PUSH_CHANGES}" == "true" ]; then
+            git push origin ${TARGET_REF_NEW}
+            echo "Unsynced changes were detected."
+            cat ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_patch
+            echo "Please review the branch ${TARGET_REF_NEW}."
+          fi
+          if [ "${EXPECT_OUT_OF_SYNC}" == "false" ]; then
+            exit 1002
+          fi
+        else
+          if [ "${PUSH_CHANGES}" != "true" ] && [ "${EXPECT_OUT_OF_SYNC}" != "false" ]; then
+            echo "Changes were expected, but none was found."
+            cat ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_patch
+            exit 1003
+          fi
+        fi
+        popd
+      shell: bash
