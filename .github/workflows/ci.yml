@@ -70,6 +70,17 @@ jobs:
           commit-message-prefix: Sync with source branch
           push-changes: false
           expect-out-of-sync: false
+      - name: Test 6. Multiple upstream commits
+        uses: ./
+        with:
+          upstream-repository: fem-on-colab/is-synced-with-upstream-action
+          upstream-ref: test-4-source
+          target-ref: test-2-target
+          file-patterns: tests/*.py **/*.txt
+          commit-message-prefix: Sync with source branch
+          push-changes: false
+          expect-out-of-sync: true
+          expected-target-range: test-2-target..test-4-expected-diff
       - name: Warn if scheduled workflow is about to be disabled
         if: github.repository == 'fem-on-colab/is-synced-with-upstream-action' && github.ref == 'refs/heads/main' && github.event_name == 'schedule'
         uses: fem-on-colab/warn-workflow-about-to-be-disabled-action@main
