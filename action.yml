@@ -36,6 +36,10 @@ inputs:
     description: If upstream and target refs are expect to be out of sync, compare the obtained difference with the one in this range. A non-default value should only be used while testing the action itself.
     required: false
     default: ""
+  token:
+    description: Token that enables reading the upstream repository and/or writing to the target repository.
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -44,6 +48,17 @@ runs:
       id: date_time
       run: echo "date_time=$(date '+%Y%m%d-%H%M%S')" >> ${GITHUB_OUTPUT}
       shell: bash
+    - name: Determine which token to use when cloning target repository
+      if: (inputs || github.event.inputs).task != 'test'
+      id: token
+      run: |
+        TOKEN=${{ inputs.token }}
+        if [ -n "${TOKEN}" ]; then
+          echo "token=${TOKEN}" >> ${GITHUB_OUTPUT}
+        else
+          echo "token=${{ github.token }}" >> ${GITHUB_OUTPUT}
+        fi
+      shell: bash
     - name: Mark target directory as safe
       run: |
         git config --global --add safe.directory ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_target
@@ -51,6 +66,7 @@ runs:
     - name: Clone target repository
       uses: actions/checkout@v3
       with:
+        token: ${{ steps.token.outputs.token }}
         ref: ${{ inputs.target-ref }}
         fetch-depth: 0
         path: ${{ github.action }}/_target
@@ -63,6 +79,7 @@ runs:
       uses: actions/checkout@v3
       with:
         repository: ${{ inputs.upstream-repository }}
+        token: ${{ steps.token.outputs.token }}
         ref: ${{ inputs.upstream-ref }}
         fetch-depth: 0
         path: ${{ github.action }}/_upstream
@@ -111,6 +128,7 @@ runs:
       if: inputs.expect-out-of-sync != 'false' && inputs.expected-target-range != ''
       uses: actions/checkout@v3
       with:
+        token: ${{ steps.token.outputs.token }}
         ref: ${{ inputs.target-ref }}
         fetch-depth: 0
         path: ${{ github.action }}/_expected_target
