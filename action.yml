@@ -32,8 +32,8 @@ inputs:
     type: bool
     required: false
     default: false
-  expected-target-ref:
-    description: If upstream and target refs are expect to be out of sync, compare the obtained difference with the one in this commit. A non-default value should only be used while testing the action itself.
+  expected-target-range:
+    description: If upstream and target refs are expect to be out of sync, compare the obtained difference with the one in this range. A non-default value should only be used while testing the action itself.
     required: false
     default: ""
 
@@ -103,12 +103,12 @@ runs:
         popd
       shell: bash
     - name: Mark expected target directory as safe
-      if: inputs.expect-out-of-sync != 'false' && inputs.expected-target-ref != ''
+      if: inputs.expect-out-of-sync != 'false' && inputs.expected-target-range != ''
       run: |
         git config --global --add safe.directory ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_expected_target
       shell: bash
     - name: Clone expected target repository
-      if: inputs.expect-out-of-sync != 'false' && inputs.expected-target-ref != ''
+      if: inputs.expect-out-of-sync != 'false' && inputs.expected-target-range != ''
       uses: actions/checkout@v3
       with:
         ref: ${{ inputs.target-ref }}
@@ -116,13 +116,13 @@ runs:
         path: ${{ github.action }}/_expected_target
         set-safe-directory: false
     - name: Compute expected difference between those two commits
-      if: inputs.expect-out-of-sync != 'false' && inputs.expected-target-ref != ''
+      if: inputs.expect-out-of-sync != 'false' && inputs.expected-target-range != ''
       run: |
         set -o noglob
         FILE_PATTERNS="${{ inputs.file-patterns }}"
-        EXPECTED_TARGET_REF=${{ inputs.expected-target-ref }}
+        EXPECTED_TARGET_RANGE=${{ inputs.expected-target-range }}
         pushd ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_expected_target
-        git diff ${EXPECTED_TARGET_REF}^ ${EXPECTED_TARGET_REF} -- ${FILE_PATTERNS} > ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_expected_patch
+        git diff ${EXPECTED_TARGET_RANGE} -- ${FILE_PATTERNS} > ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_expected_patch
         if ! cmp --silent ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_patch ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_expected_patch; then
           echo "Changes are not the same as in the expected diff ref."
           echo "Expected changes:"
