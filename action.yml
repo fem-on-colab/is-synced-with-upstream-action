@@ -168,7 +168,7 @@ runs:
         pushd ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_target
         git config user.name "GitHub Actions"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        patch -p 1 < ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_patch
+        patch -p 1 --no-backup-if-mismatch < ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_patch
         if [ -n "$(git status --porcelain=v1 2>/dev/null)" ]; then
           TARGET_REF_NEW=${TARGET_REF}-update-${DATETIME}
           git checkout -b ${TARGET_REF_NEW}
