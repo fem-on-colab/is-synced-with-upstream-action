@@ -64,7 +64,7 @@ runs:
         git config --global --add safe.directory ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_target
       shell: bash
     - name: Clone target repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         token: ${{ steps.token.outputs.token }}
         ref: ${{ inputs.target-ref }}
@@ -76,7 +76,7 @@ runs:
         git config --global --add safe.directory ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_upstream
       shell: bash
     - name: Clone upstream repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: ${{ inputs.upstream-repository }}
         token: ${{ steps.token.outputs.token }}
@@ -126,7 +126,7 @@ runs:
       shell: bash
     - name: Clone expected target repository
       if: inputs.expect-out-of-sync != 'false' && inputs.expected-target-range != ''
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         token: ${{ steps.token.outputs.token }}
         ref: ${{ inputs.target-ref }}
