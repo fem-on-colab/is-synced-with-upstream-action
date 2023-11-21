@@ -94,8 +94,12 @@ jobs:
           expect-out-of-sync: true
           expected-target-range: test-3-target..test-3-expected-diff
           token: ${{ github.token }}
+
+  warn:
+    runs-on: ubuntu-latest
+    if: github.repository == 'fem-on-colab/is-synced-with-upstream-action' && github.ref == 'refs/heads/main' && github.event_name == 'schedule'
+    steps:
       - name: Warn if scheduled workflow is about to be disabled
-        if: github.repository == 'fem-on-colab/is-synced-with-upstream-action' && github.ref == 'refs/heads/main' && github.event_name == 'schedule'
         uses: fem-on-colab/warn-workflow-about-to-be-disabled-action@main
         with:
           workflow-filename: ci.yml
