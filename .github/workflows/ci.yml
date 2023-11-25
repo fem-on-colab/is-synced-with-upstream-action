@@ -95,6 +95,16 @@ jobs:
           expected-target-range: test-3-target..test-3-expected-diff
           token: ${{ github.token }}
 
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: |
+          python3 -m pip -q install yamllint
+      - name: Run yamllint
+        run: |
+          python3 -m yamllint -d "{extends: default, rules: {document-start: {present: false}, line-length: disable, truthy: {check-keys: false}}}" .
+
   warn:
     runs-on: ubuntu-latest
     if: github.repository == 'fem-on-colab/is-synced-with-upstream-action' && github.ref == 'refs/heads/main' && github.event_name == 'schedule'
