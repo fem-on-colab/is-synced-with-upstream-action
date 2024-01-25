@@ -194,7 +194,7 @@ runs:
       shell: bash
     - name: Upload patch as an artifact in case of failure
       if: failure() || cancelled()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: "sync artifact ${{ github.action }}"
         path: |
