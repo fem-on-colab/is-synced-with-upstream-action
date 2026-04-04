@@ -64,7 +64,7 @@ runs:
         git config --global --add safe.directory ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_target
       shell: bash
     - name: Clone target repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       with:
         token: ${{ steps.token.outputs.token }}
         ref: ${{ inputs.target-ref }}
@@ -76,7 +76,7 @@ runs:
         git config --global --add safe.directory ${GITHUB_WORKSPACE}/${GITHUB_ACTION}/_upstream
       shell: bash
     - name: Clone upstream repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       with:
         repository: ${{ inputs.upstream-repository }}
         token: ${{ steps.token.outputs.token }}
@@ -126,7 +126,7 @@ runs:
       shell: bash
     - name: Clone expected target repository
       if: inputs.expect-out-of-sync != 'false' && inputs.expected-target-range != ''
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       with:
         token: ${{ steps.token.outputs.token }}
         ref: ${{ inputs.target-ref }}
@@ -194,7 +194,7 @@ runs:
       shell: bash
     - name: Upload patch as an artifact in case of failure
       if: failure() || cancelled()
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
       with:
         name: "sync artifact ${{ github.action }}"
         path: |
